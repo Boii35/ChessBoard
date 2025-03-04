@@ -47,6 +47,15 @@ h1 {
     border-radius: 50%; /* Bo goc */
     position: absolute;
 }
+.highlightpiece::after{
+    content: ""; 
+    width: 20px; 
+    height: 20px; 
+    background-color: rgba(87, 218, 87, 0.6); 
+    border-radius: 50%; 
+    position: absolute;
+}
+
 /* Hoc grid, position ***
 
 

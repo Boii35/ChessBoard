@@ -4,6 +4,8 @@ let validMoves = []; //Mang luu giu nhung nuoc di hop le cua cac quan
 let piecesBlack = ["♜", "♞", "♝", "♛", "♚","♟"];
 let piecesWhite = ["♖", "♘", "♗", "♕", "♔","♙"];
 let currentTurn = "white";
+let defeatedWhitePiece = [];
+let defeatedBlackPiece = [];
 const board = [
     ["♜", "♞", "♝", "♛", "♚", "♝", "♞", "♜"], // Hàng 1 (đen)
     ["♟", "♟", "♟", "♟", "♟", "♟", "♟", "♟"], // Hàng 2 (đen)
@@ -14,6 +16,7 @@ const board = [
     ["♙", "♙", "♙", "♙", "♙", "♙", "♙", "♙"], // Hàng 7 (trắng)
     ["♖", "♘", "♗", "♕", "♔", "♗", "♘", "♖"], // Hàng 8 (trắng)
 ];
+
 // Ham ve ban co
 function displayBoard(){
     // Xoa ban co
@@ -29,22 +32,39 @@ function displayBoard(){
             else {
                 square.classList.add('black')
             }
-            // Gan quan co cho o vuong 
-            square.innerText = board[x][y];
+
+            let piece = document.createElement("div");
+            piece.innerText = board[x][y];
+            piece.classList.add("piece");
+            piece.setAttribute("draggable", true);
+
             // Luu du lieu x y vao dataset
             square.dataset.x = x;
             square.dataset.y = y;
+            // O duoc chon phat sang 
+            // Bonus -- selectedPiece de hieu quan co nao dang duoc chon, tiep theo.x .y kiem tra xem vi tri quan co do 
+            // co trung voi vi tri tren o co hay khong
+            if(selectedPiece && selectedPiece.x == x &&  selectedPiece.y == y){
+                square.classList.add("selectedSquare");
+            }
             // some kiem tra xem mang co thoa dieu kien ( [x] = x, [y] = y) hay khong
             if (validMoves.some(move => move[0] == x && move[1] == y)) {
                 // Hien thi mau khi huong di chuyen hop le
                 square.classList.add("highlight");
-                if (board[x][y] !=""){
+                if (board[x][y] != ""){
+                
                     square.classList.add("highlightpiece");
                 }
             }
+              // Hien thi luot ben nao ro rang hon 
+            if (board[x][y] != "" && (pieceWhite(board[x][y]) && currentTurn == "white") || (pieceBlack(board[x][y]) && currentTurn =="black")){
+                square.classList.add('current-Turn');
+            }
             // Khi click vao o se thuc hien ham pressSquare 
             square.addEventListener('click', pressSquare);
+            square.appendChild(piece);
             // Hien thi square tren ban co chessBoard
+            
             chessBoard.appendChild(square);
         }
     }
@@ -62,20 +82,33 @@ function pieceBlack(piece){
 
 // Ham xu ly khi nhan vao o -- truyen tham so event 
 function pressSquare(event){
-    
+    const square = event.currentTarget;
     // Vi tri cua o co, cho minh biet la o co nao dang duoc chon
-    const x = parseInt(event.target.dataset.x);
-    const y = parseInt(event.target.dataset.y);
+    const x = parseInt(square.dataset.x);
+    const y = parseInt(square.dataset.y);
     
     if (selectedPiece) {
         // Kiem tra o muon di co nam trong mang chua nuoc di hop le cua quan do khong
         if (validMoves.some(move => move[0] == x && move[1] == y)) {
-            // O di chuyen cuoi cung
-            lastDance = {x,y};
+            //Kiem tra quan nao bi an thi day vao mang 
+            if (board[x][y] != ""){
+                if (selectedPiece.piece && pieceWhite(board[x][y])){
+                    defeatedWhitePiece.push(board[x][y]); // Trang bi an va day vao mang trang
+                }
+                if (selectedPiece.piece && pieceBlack(board[x][y])){
+                    defeatedBlackPiece.push(board[x][y]); // Den bi an va day vao mang den
+                }
+            }
             // Di chuyen quan co toi vi tri moi
             board[x][y] = selectedPiece.piece;
             // Xoa quan co o vi tri cu 
             board[selectedPiece.x][selectedPiece.y] = "";
+            // Neu tot xuong hang cuoi cung cua doi phuong thi thuc hien ham phong cap
+            if (selectedPiece.piece == "♟" && x == 7) {
+                board[x][y] = choosePiece("black");
+            } else if (selectedPiece.piece == "♙" && x == 0) {
+                board[x][y] = choosePiece("white");;
+            }
             // Tra lai chua chon quan nao
             selectedPiece = null;
             // Xoa nuoc di hop le cua quan do trong mang 
@@ -88,16 +121,17 @@ function pressSquare(event){
                 currentTurn = "white";
             }
             // Cap nhat lai ban co 
-            displayBoard(); 
+            displayBoard();
+            // Cap nhat quan bi an 
+            defeatedpieces(); 
             return;
     }
     }
     // Neu ban co co quan 
-    let piece = board[x][y];
     // Kiem tra ban co co quan hay khong 
     if (board[x][y] !== "") {
         // Kiem tra mau quan theo luot choi
-        if ((pieceWhite(piece) && currentTurn == "white") || (pieceBlack(piece) && currentTurn =="black")){
+        if ((pieceWhite(board[x][y]) && currentTurn == "white") || (pieceBlack(board[x][y]) && currentTurn =="black")){
         // Luu vi tri x y va quan co cho bien selectedPiece
         selectedPiece = { x, y, piece: board[x][y] };
         // Goi ham getValidMoves, sau do gan gia tri cua quan co (vi tri, loai quan) sau go gan cho mang validMoves
@@ -238,12 +272,12 @@ function getValidMoves(x, y, piece) {
         }
         // Quan hau 
         else if ( piece == "♛" ){
-            moves.push(...getValidMoves(x, y, "♜"))
-            moves.push(...getValidMoves(x, y, "♝"))
+            moves.push(...getValidMoves(x, y, "♜"));
+            moves.push(...getValidMoves(x, y, "♝"));
         }
         else if ( piece == "♕"){
-            moves.push(...getValidMoves(x, y, "♖"))
-            moves.push(...getValidMoves(x, y, "♗"))
+            moves.push(...getValidMoves(x, y, "♖"));
+            moves.push(...getValidMoves(x, y, "♗"));
         }
         // Quan vua
         else if ( piece == "♚" || piece == "♔"){
@@ -252,6 +286,7 @@ function getValidMoves(x, y, piece) {
                 const hx = x + kx, hy = y + ky;
                 if ( hx >=0 && hx < 8 && hy >=0 && hy < 8 ){
                     if (board[hx][hy] == "")  {
+                        
                     moves.push([hx,hy]);
                 }
                 else {
@@ -265,11 +300,10 @@ function getValidMoves(x, y, piece) {
         // Quan tot den
         else if (piece == "♟"){
             if( x+1 < 8){
-                if ( board[x+1][y] != "") {
-                    if(pieceBlack(piece) && pieceWhite(board[x+1][y])){}}
                 if ( board[x+1][y+1] != ""){   
                     if(pieceBlack(piece) && pieceWhite(board[x+1][y+1])){
                         moves.push([x+1,y+1]);
+                        
                     }
                 } 
                 if ( board[x+1][y-1] != ""){  
@@ -277,17 +311,21 @@ function getValidMoves(x, y, piece) {
                         moves.push([x+1,y-1]);
                     }
                 }
+                if ( board[x+1][y] != "") {
+                    if(pieceBlack(piece) && pieceWhite(board[x+1][y])){}
+                }
                 else {
                     moves.push([x+1,y]);
+                    if ( x == 1 && board[x+2][y] == ""){
+                        moves.push([x+2,y]);
+                    }
                 }
             }
+        
         }
         // Quan tot trang
         else if (piece == "♙"){
             if (x-1>=0){
-                if ( board[x-1][y] != "") {
-                    if(pieceWhite(piece) && pieceBlack(board[x-1][y])){}
-                }
                 if ( board[x-1][y-1] != ""){
                     if(pieceWhite(piece) && pieceBlack(board[x-1][y-1])){
                         moves.push([x-1,y-1]);  
@@ -298,15 +336,53 @@ function getValidMoves(x, y, piece) {
                         moves.push([x-1,y+1]);
                     }
                 }
+                if ( board[x-1][y] != "") {
+                    if(pieceWhite(piece) && pieceBlack(board[x-1][y])){}
+                }
                 else {
-                    moves.push([x-1,y]);
+                        moves.push([x-1,y]);
+                        if(x == 6 && board[x-2][y] == ""){
+                            moves.push([x-2,y]);
+                        }                
                 };
             }
         }
         return moves;
 }
+//Ham xu ly phong cap cho tot khi tot den hang cuoi cung cua doi phuong
+function choosePiece(color){
+    const choose = prompt("Nhap (x:xe, m:ma, h:hau, t:tuong) de phong cap");
+    switch(choose){
+        case "h": return color == "black"? "♛" : "♕"; 
+        case "x": return color == "black"? "♜" : "♖";
+        case "m": return color == "black"? "♞" : "♘"; 
+        case "t": return color == "black"? "♝" : "♗";
+        default : return color == "black"? "♛" : "♕"; 
+    }
+}
+//Ham hien thi quan
+function defeatedpieces() {
+    // Thay the noi dung cua id do thanh noi dung sau dau "="
+    document.getElementById("defeatedWhitePiece").innerText = "Trắng bị ăn: " + defeatedWhitePiece.join(" ");
+    document.getElementById("defeatedBlackPiece").innerText = "Đen bị ăn: " + defeatedBlackPiece.join(" ");
+}
+
+// Ham xu ly keo tha quan
+function dragAndDropPiece(){
+    const piece = document.querySelectorAll(".piece");
+    const square = document.querySelectorAll(".square");
+
+    piece.forEach(piece => {
+        piece.addEventListener("dragstart", (event) => {
+            event.DataTransfer.setData("text", event.target.innerText);
+            event.target.classList.add("dragging");
+        })
+        
+    })
+}
+
+
 
 
   
-
 

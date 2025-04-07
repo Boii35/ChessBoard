@@ -1,79 +1,68 @@
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 0;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background-color: #f4f4f4;
+  margin: 0;
+  padding: 0;
 }
 h1 {
-    margin: 20px;
-    color: #e62727;
+  margin: 20px;
+  color: #e62727;
 }
 #chessboard {
-    display: grid;
-    /* 8 cot, moi o trong cot 50px */
-    grid-template-columns: repeat(8, 50px);
-    /* 8 hang, moi o trong hang 50px */ 
-    grid-template-rows: repeat(8, 50px); 
-    margin: 0 auto;
-    border: 5px solid #6d3535;
-    width: 400px;
-    height: 400px;
-    
-    
-    
+  display: grid;
+  /* 8 cot, moi o trong cot 50px */
+  grid-template-columns: repeat(8, 50px);
+  /* 8 hang, moi o trong hang 50px */
+  grid-template-rows: repeat(8, 50px);
+  margin: 0 auto;
+  border: 5px solid #6d3535;
+  width: 400px;
+  height: 400px;
 }
 .square {
-    width: 50px;
-    height: 50px;
-    font-size: 40px;
-    justify-content: center;
-    align-items: center;
-    display: flex;
-    
+  width: 50px;
+  height: 50px;
+  font-size: 40px;
+  justify-content: center;
+  align-items: center;
+  display: flex;
 }
 .white {
-    background-color: #faf8f8;
+  background-color: #faf8f8;
 }
 .black {
-    background-color: #dd1a1a4f;
+  background-color: #dd1a1a4f;
 }
-.highlight{
-    position: relative;
+.highlight {
+  position: relative;
 }
-.highlight::after{
-    content: ""; /* Buoc phai co noi dung de hien thi ben trong .highlight*/
-    width: 20px; 
-    height: 20px; 
-    background-color: rgba(255, 0, 0, 0.6); 
-    border-radius: 50%; /* Bo goc */
-    position: absolute;
+.highlight::after {
+  content: ""; /* Buoc phai co noi dung de hien thi ben trong .highlight*/
+  width: 20px;
+  height: 20px;
+  background-color: rgba(255, 0, 0, 0.6);
+  border-radius: 50%;
+  position: absolute;
 }
-.highlightpiece::after{
-    content: ""; 
-    width: 20px; 
-    height: 20px; 
-    background-color: rgba(87, 218, 87, 0.6); 
-    border-radius: 50%; 
-    position: absolute;
+.highlightPiece::after {
+  content: "";
+  width: 20px;
+  height: 20px;
+  background-color: rgba(87, 218, 87, 0.6);
+  border-radius: 50%;
+  position: absolute;
 }
-#defeatedWhitePiece{
-    font-size: 30px;
+#defeatedWhitePiece {
+  font-size: 30px;
 }
-#defeatedBlackPiece{
-    font-size: 30px;
+#defeatedBlackPiece {
+  font-size: 30px;
+  margin: 10px;
 }
-.current-Turn{
-    outline: 2px solid rgb(106, 226, 58);
-    
+.current-Turn {
+  outline: 2px solid rgb(106, 226, 58);
 }
-.selectedSquare{
-    background-color: rgba(143, 70, 240, 0.6); 
+.selectedSquare {
+  background-color: rgba(143, 70, 240, 0.6);
 }
-#defeatedBlackPiece{
-    margin: 10px;
-}
-
-/* Hoc grid, position ***
-
-

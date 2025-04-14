@@ -90,7 +90,15 @@ function pressSquare(event) {
   // Vi tri cua o co, cho minh biet la o co nao dang duoc chon
   const x = parseInt(square.dataset.x);
   const y = parseInt(square.dataset.y);
-
+  // Click lai vao quan do se remove highlight
+  if (selectedPiece && selectedPiece.x === x && selectedPiece.y === y) {
+    selectedPiece = null;
+    validMoves = [];
+    removeHighlight();
+    displayBoard();
+    return;
+  }
+  // Khi nhap vao quan
   if (selectedPiece) {
     // Kiem tra o muon di co nam trong mang chua nuoc di hop le cua quan do khong
     if (validMoves.some((move) => move[0] == x && move[1] == y)) {
@@ -125,6 +133,8 @@ function pressSquare(event) {
       }
       // Cap nhat lai ban co
       displayBoard();
+      //
+      highlightAndMessage();
       // Cap nhat quan bi an
       defeatedpieces();
       return;
@@ -146,6 +156,14 @@ function pressSquare(event) {
         selectedPiece.y,
         selectedPiece.piece
       );
+      if (selectedPiece.piece == "♔" || selectedPiece.piece == "♚") {
+        const pieceAttack = pieceAttackKing(
+          selectedPiece.x,
+          selectedPiece.y,
+          selectedPiece.piece
+        );
+        validMoves = safeKing(validMoves, pieceAttack);
+      }
     }
   } else {
     // De huy chon quan do di chuyen, click vao o trong de huy
@@ -441,7 +459,11 @@ function dragAndDropPiece() {
         (pieceBlack(piece.innerText) && currentTurn === "black")
       ) {
         selectedPiece = { x, y, piece: piece.innerText };
-        validMoves = getValidMoves(x, y, piece.innerText);
+        validMoves = getValidMoves(
+          selectedPiece.x,
+          selectedPiece.y,
+          selectedPiece.piece
+        );
 
         // Kiem tra quan co va vi tri quan co co trung voi vi tri cua o vuong khong
         if (selectedPiece && selectedPiece.x == x && selectedPiece.y == y) {
@@ -450,6 +472,14 @@ function dragAndDropPiece() {
             `.square[data-x="${x}"][data-y="${y}"]`
           );
           currentSquare.classList.add("selectedSquare");
+        }
+        if (selectedPiece.piece == "♚" || selectedPiece.piece == "♔") {
+          const pieceAttack = pieceAttackKing(
+            selectedPiece.x,
+            selectedPiece.y,
+            selectedPiece.piece
+          );
+          validMoves = safeKing(validMoves, pieceAttack);
         }
 
         // Highlight mau o
@@ -489,7 +519,7 @@ function dragAndDropPiece() {
 
       if (
         selectedPiece &&
-        validMoves.some((move) => move[0] === x && move[1] === y)
+        validMoves.some((move) => move[0] == x && move[1] == y)
       ) {
         // An quan va day quan vao mang chua quan bi an
         if (board[x][y] !== "") {
@@ -520,6 +550,7 @@ function dragAndDropPiece() {
         }
 
         displayBoard();
+        highlightAndMessage();
         defeatedpieces();
       }
     });
@@ -534,3 +565,151 @@ function removeHighlight() {
     square.classList.remove("selectedSquare");
   });
 }
+
+//Ham xu ly nuoc di an toan cho vua, vua bi chieu se tu dong xoa nuoc di nam tren huong tan cong cua quan dich
+// has chi duoc su dung ben khi co Set
+function safeKing(validMoves, pieceAttack) {
+  // **filter duyet tung phan tu trong mang, giu lai [x,y] neu callback tra ve true, false se xoa di
+  const attackedSquares = new Set(pieceAttack);
+  // Loc nuoc di hop le cua vua, neu vua va quan dich co cung nuoc di thi loai nuoc di do
+  const safeMoves = validMoves.filter(([x, y]) => {
+    return !attackedSquares.has(`${x}-${y}`);
+  });
+  return safeMoves;
+}
+//Ham tra ve mang chua danh sach nuoc di hop le cua quan tan cong
+function pieceAttackKing(x, y, pieceKing) {
+  //Mang luu vi tri va quan tan cong
+  // **Set tuong tu nhu Array nhung khong co tinh trung lap
+  const attackSquare = new Set();
+  const pieceIsWhite = pieceWhite(pieceKing);
+
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const piece = board[i][j];
+
+      if (piece && (pieceIsWhite ? pieceBlack(piece) : pieceWhite(piece))) {
+        const moves = getValidMoves(i, j, piece);
+        // Vua khong nam tren duong chieu -- vua se ko di vao duong tan cong cua quan dich
+        for (let move of moves) {
+          attackSquare.add(`${move[0]}-${move[1]}`);
+        }
+        // ♙   ♟
+        if (piece == "♙") {
+          const pxLeftTop = i - 1;
+          const pyLeftTop = j - 1;
+
+          if (
+            pxLeftTop >= 0 &&
+            pxLeftTop < 8 &&
+            pyLeftTop >= 0 &&
+            pyLeftTop < 8
+          ) {
+            attackSquare.add(`${pxLeftTop}-${pyLeftTop}`);
+          }
+          const pxRightTop = i - 1;
+          const pyRightTop = j + 1;
+          if (
+            pxRightTop >= 0 &&
+            pxRightTop < 8 &&
+            pyRightTop >= 0 &&
+            pyRightTop < 8
+          ) {
+            attackSquare.add(`${pxRightTop}-${pyRightTop}`);
+          }
+          if (board[i - 1][j] == "" && i - 1 >= 0) {
+            attackSquare.delete(`${i - 1}-${j}`);
+          }
+        }
+
+        if (piece == "♟") {
+          const pxLeftBottom = i + 1;
+          const pyLeftBottom = j - 1;
+
+          if (
+            pxLeftBottom >= 0 &&
+            pxLeftBottom < 8 &&
+            pyLeftBottom >= 0 &&
+            pyLeftBottom < 8
+          ) {
+            attackSquare.add(`${pxLeftBottom}-${pyLeftBottom}`);
+          }
+          const pxRightBottom = i + 1;
+          const pyRightBottom = j + 1;
+          if (
+            pxRightBottom >= 0 &&
+            pxRightBottom < 8 &&
+            pyRightBottom >= 0 &&
+            pyRightBottom < 8
+          ) {
+            attackSquare.add(`${pxRightBottom}-${pyRightBottom}`);
+          }
+          if (board[i + 1][j] == "" && i + 1 < 8) {
+            attackSquare.delete(`${i + 1}-${j}`);
+          }
+        }
+        // Vua nam tren duong chieu
+        if (moves.some(([mi, mj]) => mi == x && mj == y)) {
+          const dx = Math.sign(x - i);
+          const dy = Math.sign(y - j);
+          let kx = x + dx;
+          let ky = y + dy;
+          if (kx >= 0 && kx < 8 && ky >= 0 && ky < 8 && board[kx][ky] == "") {
+            attackSquare.add(`${kx}-${ky}`);
+          }
+        }
+      }
+    }
+  }
+  // Dung Array.from de tra ve dang Array vi getValidMoves dang xu ly la Array
+  return Array.from(attackSquare);
+}
+// Ham highlight va hien thi thong bao khi vua bi chieu
+function highlightAndMessage() {
+  // Ham remove highlight va thong bao
+  const allSquares = document.querySelectorAll(".square");
+  allSquares.forEach((square) =>
+    square.classList.remove("highlightKingInCheck")
+  );
+  const messageCancel = document.querySelectorAll(".check-message");
+  messageCancel.forEach((mS) => {
+    mS.textContent = "";
+    mS.style.visibility = "hidden";
+  });
+
+  // Highlight va hien thi thong bao chieu
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const king = board[i][j];
+      // const kingPosition = [i, j];
+      if (
+        (king == "♚" && currentTurn == "black") ||
+        (king == "♔" && currentTurn == "white")
+      ) {
+        const attackSquares = pieceAttackKing(i, j, king);
+        if (attackSquares.includes(`${i}-${j}`)) {
+          const square = document.querySelector(
+            `.square[data-x="${i}"][data-y="${j}"]`
+          );
+          square.classList.add("highlightKingInCheck");
+          if (pieceBlack(king)) {
+            const messageBlack = document.querySelector(
+              ".check-message.blackKing"
+            );
+            messageBlack.textContent = "Vua đen bị chiếu";
+            messageBlack.style.visibility = "visible";
+          } else {
+            const messageWhite = document.querySelector(
+              ".check-message.whiteKing"
+            );
+            messageWhite.textContent = "Vua trắng bị chiếu";
+            messageWhite.style.visibility = "visible";
+          }
+        }
+      }
+    }
+  }
+}
+
+// Them tinh nang chieu bi va neu co 2 quan chieu tren cung duong thi ngan ko cho vua an quan do
+

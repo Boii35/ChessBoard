@@ -1,18 +1,35 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset='utf-8'>
-    <meta http-equiv='X-UA-Compatible' content='IE=edge'>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>Bàn cờ vua</title>
-    <meta name='viewport' content='width=device-width, initial-scale=1'>
-    <link rel='stylesheet' type='text/css' media='screen' href='easychess.css'>
-    <link rel="shortcut icon" href="https://lichess1.org/assets/logo/lichess-favicon-512.png" type="image/x-icon">
-</head>
-<body>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="easychess.css"
+    />
+    <link
+      rel="shortcut icon"
+      href="https://lichess1.org/assets/logo/lichess-favicon-512.png"
+      type="image/x-icon"
+    />
+  </head>
+  <body>
     <h1>Bàn cờ vua đơn giản</h1>
-    <div id="chessboard"></div>
-    <div id="defeatedBlackPiece">Đen bị ăn: </div>
-    <div id="defeatedWhitePiece">Trắng bị ăn: </div>
-    <script src='easychess.js'></script>
-</body>
+    <div class="chessblock">
+      <div id="chessboard"></div>
+      <div class="infor">
+        <div class="check-message blackKing"></div>
+        <div class="defeatedPiece">
+          <div id="defeatedBlackPiece">Đen bị ăn:</div>
+          <div id="defeatedWhitePiece">Trắng bị ăn:</div>
+        </div>
+        <div class="check-message whiteKing"></div>
+      </div>
+    </div>
+    <script src="easychess.js"></script>
+  </body>
 </html>

@@ -137,6 +137,7 @@ function pressSquare(event) {
       highlightAndMessage();
       // Cap nhat quan bi an
       defeatedpieces();
+      checkmate();
       return;
     }
   }
@@ -148,6 +149,25 @@ function pressSquare(event) {
       (pieceWhite(board[x][y]) && currentTurn == "white") ||
       (pieceBlack(board[x][y]) && currentTurn == "black")
     ) {
+      const kingPosition = findKing(currentTurn);
+      const king = board[kingPosition.x][kingPosition.y];
+      // Quan tan cong
+      const pieceAttack = pieceAttackKing(kingPosition.x, kingPosition.y, king);
+      const kingMoves = getValidMoves(kingPosition.x, kingPosition.y, king);
+      const kingInCheck = pieceAttack.includes(
+        `${kingPosition.x}-${kingPosition.y}`
+      );
+      // Neu vua bi chieu
+      if (kingInCheck) {
+        const pieceProtectKing = safeKing(kingPosition.x, kingPosition.y, king);
+        // Quan khong nam trong mang thi dung im
+        if (
+          !pieceProtectKing.includes(`${x}-${y}`) &&
+          (x !== kingPosition.x || y !== kingPosition.y)
+        ) {
+          return;
+        }
+      }
       // Luu vi tri x y va quan co cho bien selectedPiece
       selectedPiece = { x, y, piece: board[x][y] };
       // Goi ham getValidMoves, sau do gan gia tri cua quan co (vi tri, loai quan) sau go gan cho mang validMoves
@@ -156,13 +176,12 @@ function pressSquare(event) {
         selectedPiece.y,
         selectedPiece.piece
       );
-      if (selectedPiece.piece == "♔" || selectedPiece.piece == "♚") {
-        const pieceAttack = pieceAttackKing(
-          selectedPiece.x,
-          selectedPiece.y,
-          selectedPiece.piece
-        );
-        validMoves = safeKing(validMoves, pieceAttack);
+      if (kingInCheck) {
+        if (selectedPiece.piece == "♔" || selectedPiece.piece == "♚") {
+          validMoves = safeKingMoves(validMoves, pieceAttack);
+        } else {
+          validMoves = pieceCanProtectKing(validMoves, pieceAttack);
+        }
       }
     }
   } else {
@@ -175,7 +194,7 @@ function pressSquare(event) {
   displayBoard();
 }
 // Ham xu ly di chuyen quan
-function getValidMoves(x, y, piece) {
+function getValidMoves(x, y, piece, forAttack = false) {
   const moves = [];
   // Quân xe
   if (piece == "♜" || piece == "♖") {
@@ -184,7 +203,8 @@ function getValidMoves(x, y, piece) {
         //Quan den va quan trang --- Quan trang va quan den
         if (
           (pieceBlack(piece) && pieceWhite(board[i][y])) ||
-          (pieceWhite(piece) && pieceBlack(board[i][y]))
+          (pieceWhite(piece) && pieceBlack(board[i][y])) ||
+          (forAttack && whichPieceKing(piece))
         ) {
           moves.push([i, y]);
         }
@@ -197,7 +217,8 @@ function getValidMoves(x, y, piece) {
       if (board[i][y] != "") {
         if (
           (pieceBlack(piece) && pieceWhite(board[i][y])) ||
-          (pieceWhite(piece) && pieceBlack(board[i][y]))
+          (pieceWhite(piece) && pieceBlack(board[i][y])) ||
+          (forAttack && whichPieceKing(piece))
         ) {
           moves.push([i, y]);
         }
@@ -210,7 +231,8 @@ function getValidMoves(x, y, piece) {
       if (board[x][i] != "") {
         if (
           (pieceWhite(piece) && pieceBlack(board[x][i])) ||
-          (pieceBlack(piece) && pieceWhite(board[x][i]))
+          (pieceBlack(piece) && pieceWhite(board[x][i])) ||
+          (forAttack && whichPieceKing(piece))
         ) {
           moves.push([x, i]);
         }
@@ -223,7 +245,8 @@ function getValidMoves(x, y, piece) {
       if (board[x][i] != "") {
         if (
           (pieceWhite(piece) && pieceBlack(board[x][i])) ||
-          (pieceBlack(piece) && pieceWhite(board[x][i]))
+          (pieceBlack(piece) && pieceWhite(board[x][i])) ||
+          (forAttack && whichPieceKing(piece))
         ) {
           moves.push([x, i]);
         }
@@ -270,7 +293,8 @@ function getValidMoves(x, y, piece) {
         if (board[x + i][y + i] != "") {
           if (
             (pieceBlack(piece) && pieceWhite(board[x + i][y + i])) ||
-            (pieceWhite(piece) && pieceBlack(board[x + i][y + i]))
+            (pieceWhite(piece) && pieceBlack(board[x + i][y + i])) ||
+            (forAttack && whichPieceKing(piece))
           ) {
             moves.push([x + i, y + i]);
           }
@@ -285,7 +309,8 @@ function getValidMoves(x, y, piece) {
         if (board[x + i][y - i] != "") {
           if (
             (pieceBlack(piece) && pieceWhite(board[x + i][y - i])) ||
-            (pieceWhite(piece) && pieceBlack(board[x + i][y - i]))
+            (pieceWhite(piece) && pieceBlack(board[x + i][y - i])) ||
+            (forAttack && whichPieceKing(piece))
           ) {
             moves.push([x + i, y - i]);
           }
@@ -300,7 +325,8 @@ function getValidMoves(x, y, piece) {
         if (board[x - i][y + i] != "") {
           if (
             (pieceBlack(piece) && pieceWhite(board[x - i][y + i])) ||
-            (pieceWhite(piece) && pieceBlack(board[x - i][y + i]))
+            (pieceWhite(piece) && pieceBlack(board[x - i][y + i])) ||
+            (forAttack && whichPieceKing(piece))
           ) {
             moves.push([x - i, y + i]);
           }
@@ -315,7 +341,8 @@ function getValidMoves(x, y, piece) {
         if (board[x - i][y - i] != "") {
           if (
             (pieceWhite(piece) && pieceBlack(board[x - i][y - i])) ||
-            (pieceBlack(piece) && pieceWhite(board[x - i][y - i]))
+            (pieceBlack(piece) && pieceWhite(board[x - i][y - i])) ||
+            (forAttack && whichPieceKing(piece))
           ) {
             moves.push([x - i, y - i]);
           }
@@ -328,11 +355,11 @@ function getValidMoves(x, y, piece) {
   }
   // Quan hau
   else if (piece == "♛") {
-    moves.push(...getValidMoves(x, y, "♜"));
-    moves.push(...getValidMoves(x, y, "♝"));
+    moves.push(...getValidMoves(x, y, "♜", forAttack));
+    moves.push(...getValidMoves(x, y, "♝", forAttack));
   } else if (piece == "♕") {
-    moves.push(...getValidMoves(x, y, "♖"));
-    moves.push(...getValidMoves(x, y, "♗"));
+    moves.push(...getValidMoves(x, y, "♖", forAttack));
+    moves.push(...getValidMoves(x, y, "♗", forAttack));
   }
   // Quan vua
   else if (piece == "♚" || piece == "♔") {
@@ -347,8 +374,8 @@ function getValidMoves(x, y, piece) {
       [-1, 1],
     ];
     for (const [kx, ky] of king) {
-      const hx = x + kx,
-        hy = y + ky;
+      const hx = x + kx;
+      const hy = y + ky;
       if (hx >= 0 && hx < 8 && hy >= 0 && hy < 8) {
         if (board[hx][hy] == "") {
           moves.push([hx, hy]);
@@ -479,7 +506,7 @@ function dragAndDropPiece() {
             selectedPiece.y,
             selectedPiece.piece
           );
-          validMoves = safeKing(validMoves, pieceAttack);
+          validMoves = safeKingMoves(validMoves, pieceAttack);
         }
 
         // Highlight mau o
@@ -566,9 +593,9 @@ function removeHighlight() {
   });
 }
 
-//Ham xu ly nuoc di an toan cho vua, vua bi chieu se tu dong xoa nuoc di nam tren huong tan cong cua quan dich
+// Ham xu ly nuoc di an toan cho vua, vua bi chieu se tu dong xoa nuoc di nam tren huong tan cong cua quan dich
 // has chi duoc su dung ben khi co Set
-function safeKing(validMoves, pieceAttack) {
+function safeKingMoves(validMoves, pieceAttack) {
   // **filter duyet tung phan tu trong mang, giu lai [x,y] neu callback tra ve true, false se xoa di
   const attackedSquares = new Set(pieceAttack);
   // Loc nuoc di hop le cua vua, neu vua va quan dich co cung nuoc di thi loai nuoc di do
@@ -589,74 +616,10 @@ function pieceAttackKing(x, y, pieceKing) {
       const piece = board[i][j];
 
       if (piece && (pieceIsWhite ? pieceBlack(piece) : pieceWhite(piece))) {
-        const moves = getValidMoves(i, j, piece);
-        // Vua khong nam tren duong chieu -- vua se ko di vao duong tan cong cua quan dich
-        for (let move of moves) {
-          attackSquare.add(`${move[0]}-${move[1]}`);
-        }
-        // ♙   ♟
-        if (piece == "♙") {
-          const pxLeftTop = i - 1;
-          const pyLeftTop = j - 1;
-
-          if (
-            pxLeftTop >= 0 &&
-            pxLeftTop < 8 &&
-            pyLeftTop >= 0 &&
-            pyLeftTop < 8
-          ) {
-            attackSquare.add(`${pxLeftTop}-${pyLeftTop}`);
-          }
-          const pxRightTop = i - 1;
-          const pyRightTop = j + 1;
-          if (
-            pxRightTop >= 0 &&
-            pxRightTop < 8 &&
-            pyRightTop >= 0 &&
-            pyRightTop < 8
-          ) {
-            attackSquare.add(`${pxRightTop}-${pyRightTop}`);
-          }
-          if (board[i - 1][j] == "" && i - 1 >= 0) {
-            attackSquare.delete(`${i - 1}-${j}`);
-          }
-        }
-
-        if (piece == "♟") {
-          const pxLeftBottom = i + 1;
-          const pyLeftBottom = j - 1;
-
-          if (
-            pxLeftBottom >= 0 &&
-            pxLeftBottom < 8 &&
-            pyLeftBottom >= 0 &&
-            pyLeftBottom < 8
-          ) {
-            attackSquare.add(`${pxLeftBottom}-${pyLeftBottom}`);
-          }
-          const pxRightBottom = i + 1;
-          const pyRightBottom = j + 1;
-          if (
-            pxRightBottom >= 0 &&
-            pxRightBottom < 8 &&
-            pyRightBottom >= 0 &&
-            pyRightBottom < 8
-          ) {
-            attackSquare.add(`${pxRightBottom}-${pyRightBottom}`);
-          }
-          if (board[i + 1][j] == "" && i + 1 < 8) {
-            attackSquare.delete(`${i + 1}-${j}`);
-          }
-        }
-        // Vua nam tren duong chieu
-        if (moves.some(([mi, mj]) => mi == x && mj == y)) {
-          const dx = Math.sign(x - i);
-          const dy = Math.sign(y - j);
-          let kx = x + dx;
-          let ky = y + dy;
-          if (kx >= 0 && kx < 8 && ky >= 0 && ky < 8 && board[kx][ky] == "") {
-            attackSquare.add(`${kx}-${ky}`);
-          }
+        if (piece == "♙" || piece == "♟") {
+          pawnAttack(i, j, x, y, piece, pieceIsWhite, attackSquare);
+        } else {
+          pieceAttack(i, j, x, y, piece, pieceIsWhite, attackSquare, pieceKing);
         }
       }
     }
@@ -710,6 +673,181 @@ function highlightAndMessage() {
     }
   }
 }
+function whichPieceKing(piece) {
+  return pieceWhite(piece) ? "♚" : "♔";
+}
+// Them tinh nang chieu bi
+// Neu vua bi chieu, chi vua va nhung quan co the chan duong chieu di chuyen, quan con lai ko di chuyen duoc
+// Chi quan che chan cho vua moi di chuyen duoc, quan do chi di duoc nuoc che cho vua chu ko phai di chuyen theo binh thuong
 
-// Them tinh nang chieu bi va neu co 2 quan chieu tren cung duong thi ngan ko cho vua an quan do
+// Ham loc cac quan co the che chan cho vua
+function pieceCanProtectKing(validMoves, pieceAttack) {
+  const pieceAttackSquare = new Set(pieceAttack);
+  const pieceProtectMoves = validMoves.filter(([mx, my]) => {
+    return pieceAttackSquare.has(`${mx}-${my}`);
+  });
+  return pieceProtectMoves;
+}
+// Ham tim vua
+function findKing(currentTurn) {
+  const kingPosition = currentTurn == "white" ? "♔" : "♚";
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      if (board[i][j] == kingPosition) {
+        return { x: i, y: j };
+      }
+    }
+  }
+  return null;
+}
+// Ham lay nuoc o quan dich tan cong vua
+function lineAttackKing(i, j, x, y) {
+  const lineAttack = [];
+  const dx = Math.sign(x - i);
+  const dy = Math.sign(y - j);
+  if (Math.abs(x - i) === Math.abs(y - j) || i === x || j === y) {
+    let px = i;
+    let py = j;
+    while (px != x || py != y) {
+      lineAttack.push([px, py]);
+      px += dx;
+      py += dy;
+    }
+  }
+  return lineAttack;
+}
+// Ham tot tan cong
+function pawnAttack(i, j, x, y, piece, pieceIsWhite, attackSquare) {
+  if (piece == "♙") {
+    if (i > 0 && j > 0) attackSquare.add(`${i - 1}-${j - 1}`);
+    if (i > 0 && j < 7) attackSquare.add(`${i - 1}-${j + 1}`);
+  }
+  if (piece == "♟") {
+    if (i < 7 && j > 0) attackSquare.add(`${i + 1}-${j - 1}`);
+    if (i < 7 && j < 7) attackSquare.add(`${i + 1}-${j + 1}`);
+  }
+  checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare);
+}
+// Ham cac quan con lai tan cong
+function pieceAttack(i, j, x, y, piece, pieceIsWhite, attackSquare, pieceKing) {
+  const movesAttack = getValidMoves(i, j, piece, true);
+  const movesKing = getValidMoves(x, y, pieceKing);
+  const onMovesKing = movesKing.some(([kx, ky]) => kx == i && ky == j);
+  const isAttackingKing = movesAttack.some(([mx, my]) => mx == x && my == y);
+  if (isAttackingKing) {
+    if (!onMovesKing) {
+      const lineAttackToKing = lineAttackKing(i, j, x, y);
+      for (let line of lineAttackToKing) {
+        attackSquare.add(`${line[0]}-${line[1]}`);
+      }
+    } else {
+      for (let move of movesKing) {
+        attackSquare.add(`${move[0]}-${move[1]}`);
+      }
+    }
+    attackSquare.add(`${i}-${j}`);
+    attackSquare.add(`${x}-${y}`);
 
+    checkSquareBehindKing(i, j, x, y, attackSquare);
+    checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare);
+  } else {
+    for (let move of movesAttack) {
+      attackSquare.add(`${move[0]}-${move[1]}`);
+    }
+  }
+}
+// Ham kiem tra o sau vua
+function checkSquareBehindKing(i, j, x, y, attackSquare) {
+  const dx = Math.sign(x - i);
+  const dy = Math.sign(y - j);
+  let behindKingX = x + dx;
+  let behindKingY = y + dy;
+  if (
+    insideBoard(behindKingX, behindKingY) &&
+    board[behindKingX][behindKingY] == ""
+  ) {
+    attackSquare.add(`${behindKingX}-${behindKingY}`);
+  }
+}
+// Ham kiem tra co bi chieu chong khong
+function checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare) {
+  const dx = Math.sign(i - x);
+  const dy = Math.sign(j - y);
+  let nx = i + dx;
+  let ny = j + dy;
+  while (insideBoard(nx, ny)) {
+    const nextPiece = board[nx][ny];
+    if (
+      nextPiece &&
+      (pieceIsWhite ? pieceWhite(nextPiece) : pieceBlack(nextPiece))
+    ) {
+      break;
+    }
+    const nextMoves = getValidMoves(nx, ny, nextPiece, true);
+    const checkNextPiece = nextMoves.some(([mx, my]) => mx == x && my == y);
+    if (checkNextPiece) {
+      attackSquare.add(`${i}-${j}`);
+      break;
+    }
+    nx += dx;
+    ny += dy;
+  }
+}
+// Ham gioi han pham vi trong ban co`
+function insideBoard(x, y) {
+  return x >= 0 && x < 8 && y >= 0 && y < 8;
+}
+// Ham tra ve mang chua nhung quan
+function safeKing(x, y, pieceKing) {
+  const pieceProtect = [];
+  const pieceIsWhite = pieceWhite(pieceKing);
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const teammate = board[i][j];
+      if (
+        teammate &&
+        (pieceIsWhite ? pieceWhite(teammate) : pieceBlack(teammate))
+      ) {
+        const moves = getValidMoves(i, j, teammate);
+        for (let [mx, my] of moves) {
+          const undoFrom = board[i][j];
+          const undoTo = board[mx][my];
+          board[i][j] = "";
+          board[mx][my] = teammate;
+          const stillInCheck = pieceAttackKing(x, y, pieceKing).includes(
+            `${x}-${y}`
+          );
+          board[i][j] = undoFrom;
+          board[mx][my] = undoTo;
+          if (!stillInCheck) {
+            pieceProtect.push(`${i}-${j}`);
+            break;
+          }
+        }
+      }
+    }
+  }
+  pieceProtect.push(`${x}-${y}`);
+  return pieceProtect;
+}
+
+// ** Vua van bi loi khi di vao duong tan cong cua quan Hau, Xe, Tuong
+// ** Viet ro, chieu chong thi chi vua di chuyen, chieu don thi Vua co the an quan,
+// Cac quan che chan thi chi di duoc nuoc de che, ko di het cac nuoc ma no co the di duoc
+
+function checkmate() {
+  const kingPosition = findKing(currentTurn);
+  const king = board[kingPosition.x][kingPosition.y];
+  // Quan tan cong
+  const pieceAttack = pieceAttackKing(kingPosition.x, kingPosition.y, king);
+  const kingMoves = getValidMoves(kingPosition.x, kingPosition.y, king);
+  const safeKing = safeKingMoves(kingMoves, pieceAttack);
+  if (
+    safeKing.length == 0 &&
+    pieceAttack.includes(`${kingPosition.x}-${kingPosition.y}`)
+  ) {
+    setTimeout(() => {
+      alert(`Chiếu bí! ${currentTurn == "white" ? "Đen" : "Trắng"} thắng`);
+    }, 100);
+  }
+}

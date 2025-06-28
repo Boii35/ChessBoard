@@ -1,3 +1,41 @@
+// Client
+const socket = new WebSocket("ws://localhost:3000");
+let myColor = null;
+socket.addEventListener("message", (event) => {
+  const data = JSON.parse(event.data);
+
+  if (data.type == "start") {
+    myColor = data.color;
+    alert("Ban choi quan " + (myColor == "white" ? "trang" : "den"));
+  }
+
+  if (data.type == "move") {
+    const { fromX, fromY, toX, toY, piece } = data;
+
+    board[toX][toY] = piece;
+    board[fromX][fromY] = "";
+    currentTurn = myColor;
+    displayBoard();
+    defeatedpieces();
+    highlightAndMessage();
+  }
+
+  if (data.type == "defeatedPiece") {
+    if (data.color == "white") {
+      defeatedWhitePiece.push(data.piece);
+    } else {
+      defeatedBlackPiece.push(data.piece);
+    }
+    defeatedpieces();
+  }
+
+  if (data.type == "end") {
+    alert("Doi thu da roi di");
+  }
+});
+
+// --------
+
 const chessBoard = document.getElementById("chessboard"); //lay phan tu tu id chessBoard
 let selectedPiece = null; //ban dau ko quan co nao duoc chon
 let validMoves = []; //Mang luu giu nhung nuoc di hop le cua cac quan
@@ -86,6 +124,9 @@ function pieceBlack(piece) {
 
 // Ham xu ly khi nhan vao o -- truyen tham so event
 function pressSquare(event) {
+  if (myColor != currentTurn) {
+    return;
+  }
   const square = event.currentTarget;
   // Vi tri cua o co, cho minh biet la o co nao dang duoc chon
   const x = parseInt(square.dataset.x);
@@ -102,19 +143,23 @@ function pressSquare(event) {
   if (selectedPiece) {
     // Kiem tra o muon di co nam trong mang chua nuoc di hop le cua quan do khong
     if (validMoves.some((move) => move[0] == x && move[1] == y)) {
+      let pieceEaten = "";
       //Kiem tra quan nao bi an thi day vao mang
       if (board[x][y] != "") {
-        if (selectedPiece.piece && pieceWhite(board[x][y])) {
+        pieceEaten = board[x][y];
+        if (pieceWhite(board[x][y])) {
           defeatedWhitePiece.push(board[x][y]); // Trang bi an va day vao mang trang
         }
-        if (selectedPiece.piece && pieceBlack(board[x][y])) {
+        if (pieceBlack(board[x][y])) {
           defeatedBlackPiece.push(board[x][y]); // Den bi an va day vao mang den
         }
       }
+      const fromX = selectedPiece.x;
+      const fromY = selectedPiece.y;
       // Di chuyen quan co toi vi tri moi
       board[x][y] = selectedPiece.piece;
       // Xoa quan co o vi tri cu
-      board[selectedPiece.x][selectedPiece.y] = "";
+      board[fromX][fromY] = "";
       // Neu tot xuong hang cuoi cung cua doi phuong thi thuc hien ham phong cap
       if (selectedPiece.piece == "♟" && x == 7) {
         board[x][y] = choosePiece("black");
@@ -125,6 +170,34 @@ function pressSquare(event) {
       selectedPiece = null;
       // Xoa nuoc di hop le cua quan do trong mang
       validMoves = [];
+
+      if (socket.readyState == WebSocket.OPEN && myColor) {
+        socket.send(
+          JSON.stringify({
+            type: "move",
+            fromX,
+            fromY,
+            toX: x,
+            toY: y,
+            piece: board[x][y],
+          })
+        );
+      }
+      if (pieceEaten != "") {
+        let defeatedPieceColor = "";
+        if (pieceWhite(pieceEaten)) {
+          defeatedPieceColor = "white";
+        } else if (pieceBlack(pieceEaten)) {
+          defeatedPieceColor = "black";
+        }
+        socket.send(
+          JSON.stringify({
+            type: "defeatedPiece",
+            piece: pieceEaten,
+            color: defeatedPieceColor,
+          })
+        );
+      }
       //Doi luot luan phien
       if (currentTurn == "white") {
         currentTurn = "black";
@@ -150,39 +223,32 @@ function pressSquare(event) {
       (pieceBlack(board[x][y]) && currentTurn == "black")
     ) {
       const kingPosition = findKing(currentTurn);
+      if (!kingPosition) return;
+
       const king = board[kingPosition.x][kingPosition.y];
       // Quan tan cong
       const pieceAttack = pieceAttackKing(kingPosition.x, kingPosition.y, king);
-      const kingMoves = getValidMoves(kingPosition.x, kingPosition.y, king);
-      const kingInCheck = pieceAttack.includes(
-        `${kingPosition.x}-${kingPosition.y}`
-      );
-      // Neu vua bi chieu
-      if (kingInCheck) {
-        const pieceProtectKing = safeKing(kingPosition.x, kingPosition.y, king);
-        // Quan khong nam trong mang thi dung im
-        if (
-          !pieceProtectKing.includes(`${x}-${y}`) &&
-          (x !== kingPosition.x || y !== kingPosition.y)
-        ) {
-          return;
-        }
-      }
       // Luu vi tri x y va quan co cho bien selectedPiece
       selectedPiece = { x, y, piece: board[x][y] };
       // Goi ham getValidMoves, sau do gan gia tri cua quan co (vi tri, loai quan) sau go gan cho mang validMoves
-      validMoves = getValidMoves(
+      let trueMoves = getValidMoves(
         selectedPiece.x,
         selectedPiece.y,
         selectedPiece.piece
       );
-      if (kingInCheck) {
-        if (selectedPiece.piece == "♔" || selectedPiece.piece == "♚") {
-          validMoves = safeKingMoves(validMoves, pieceAttack);
-        } else {
-          validMoves = pieceCanProtectKing(validMoves, pieceAttack);
-        }
-      }
+
+      validMoves = trueMoves.filter(([toX, toY]) => {
+        return safeKingMoves(
+          selectedPiece.x,
+          selectedPiece.y,
+          toX,
+          toY,
+          currentTurn
+        );
+      });
+
+      displayBoard();
+      highlightAndMessage();
     }
   } else {
     // De huy chon quan do di chuyen, click vao o trong de huy
@@ -482,8 +548,12 @@ function dragAndDropPiece() {
 
       // Dung luot thi moi duoc keo
       if (
-        (pieceWhite(piece.innerText) && currentTurn === "white") ||
-        (pieceBlack(piece.innerText) && currentTurn === "black")
+        (myColor == "white" &&
+          pieceWhite(piece.innerText) &&
+          currentTurn === "white") ||
+        (myColor == "black" &&
+          pieceBlack(piece.innerText) &&
+          currentTurn === "black")
       ) {
         selectedPiece = { x, y, piece: piece.innerText };
         validMoves = getValidMoves(
@@ -506,7 +576,21 @@ function dragAndDropPiece() {
             selectedPiece.y,
             selectedPiece.piece
           );
-          validMoves = safeKingMoves(validMoves, pieceAttack);
+          const kingMoves = getValidMoves(
+            selectedPiece.x,
+            selectedPiece.y,
+            selectedPiece.piece
+          );
+          // validMoves = safeKingMoves(validMoves, pieceAttack);
+          validMoves = kingMoves.filter(([kx, ky]) => {
+            return safeKingMoves(
+              selectedPiece.x,
+              selectedPiece.y,
+              kx,
+              ky,
+              currentTurn
+            );
+          });
         }
 
         // Highlight mau o
@@ -519,8 +603,12 @@ function dragAndDropPiece() {
           if (targetSquare) {
             const targetPiece = board[mx][my];
             if (
-              (pieceWhite(selectedPiece.piece) && pieceBlack(targetPiece)) ||
-              (pieceBlack(selectedPiece.piece) && pieceWhite(targetPiece))
+              (myColor == "white" &&
+                pieceWhite(selectedPiece.piece) &&
+                pieceBlack(targetPiece)) ||
+              (myColor == "black" &&
+                pieceBlack(selectedPiece.piece) &&
+                pieceWhite(targetPiece))
             ) {
               targetSquare.classList.add("highlightPiece");
             } else {
@@ -541,6 +629,9 @@ function dragAndDropPiece() {
     });
     // Xu ly su kien khi drop vao dragover
     square.addEventListener("drop", (e) => {
+      if (myColor != currentTurn) {
+        return;
+      }
       const x = parseInt(square.dataset.x);
       const y = parseInt(square.dataset.y);
 
@@ -548,17 +639,20 @@ function dragAndDropPiece() {
         selectedPiece &&
         validMoves.some((move) => move[0] == x && move[1] == y)
       ) {
+        let pieceEaten = "";
         // An quan va day quan vao mang chua quan bi an
         if (board[x][y] !== "") {
+          let pieceEaten = board[x][y];
           if (pieceWhite(board[x][y])) {
             defeatedWhitePiece.push(board[x][y]);
           } else if (pieceBlack(board[x][y])) {
             defeatedBlackPiece.push(board[x][y]);
           }
         }
-
+        const fromX = selectedPiece.x;
+        const fromY = selectedPiece.y;
         board[x][y] = selectedPiece.piece;
-        board[selectedPiece.x][selectedPiece.y] = "";
+        board[fromX][fromY] = "";
 
         // Phong cap cho tot khi den cuoi hang cua doi dich
         if (selectedPiece.piece == "♟" && x == 7) {
@@ -568,7 +662,37 @@ function dragAndDropPiece() {
         }
 
         selectedPiece = null;
+
         validMoves = [];
+
+        if (socket.readyState == WebSocket.OPEN && myColor) {
+          socket.send(
+            JSON.stringify({
+              type: "move",
+              fromX,
+              fromY,
+              toX: x,
+              toY: y,
+              piece: board[x][y],
+            })
+          );
+        }
+
+        if (pieceEaten != "") {
+          let defeatedPieceColor = "";
+          if (pieceWhite(pieceEaten)) {
+            defeatedPieceColor = "white";
+          } else if (pieceBlack(pieceEaten)) {
+            defeatedPieceColor = "black";
+          }
+          socket.send(
+            JSON.stringify({
+              type: "defeatedPiece",
+              piece: pieceEaten,
+              color: defeatedPieceColor,
+            })
+          );
+        }
 
         if (currentTurn == "white") {
           currentTurn = "black";
@@ -593,17 +717,6 @@ function removeHighlight() {
   });
 }
 
-// Ham xu ly nuoc di an toan cho vua, vua bi chieu se tu dong xoa nuoc di nam tren huong tan cong cua quan dich
-// has chi duoc su dung ben khi co Set
-function safeKingMoves(validMoves, pieceAttack) {
-  // **filter duyet tung phan tu trong mang, giu lai [x,y] neu callback tra ve true, false se xoa di
-  const attackedSquares = new Set(pieceAttack);
-  // Loc nuoc di hop le cua vua, neu vua va quan dich co cung nuoc di thi loai nuoc di do
-  const safeMoves = validMoves.filter(([x, y]) => {
-    return !attackedSquares.has(`${x}-${y}`);
-  });
-  return safeMoves;
-}
 //Ham tra ve mang chua danh sach nuoc di hop le cua quan tan cong
 function pieceAttackKing(x, y, pieceKing) {
   //Mang luu vi tri va quan tan cong
@@ -676,18 +789,7 @@ function highlightAndMessage() {
 function whichPieceKing(piece) {
   return pieceWhite(piece) ? "♚" : "♔";
 }
-// Them tinh nang chieu bi
-// Neu vua bi chieu, chi vua va nhung quan co the chan duong chieu di chuyen, quan con lai ko di chuyen duoc
-// Chi quan che chan cho vua moi di chuyen duoc, quan do chi di duoc nuoc che cho vua chu ko phai di chuyen theo binh thuong
 
-// Ham loc cac quan co the che chan cho vua
-function pieceCanProtectKing(validMoves, pieceAttack) {
-  const pieceAttackSquare = new Set(pieceAttack);
-  const pieceProtectMoves = validMoves.filter(([mx, my]) => {
-    return pieceAttackSquare.has(`${mx}-${my}`);
-  });
-  return pieceProtectMoves;
-}
 // Ham tim vua
 function findKing(currentTurn) {
   const kingPosition = currentTurn == "white" ? "♔" : "♚";
@@ -698,8 +800,10 @@ function findKing(currentTurn) {
       }
     }
   }
+
   return null;
 }
+
 // Ham lay nuoc o quan dich tan cong vua
 function lineAttackKing(i, j, x, y) {
   const lineAttack = [];
@@ -726,110 +830,69 @@ function pawnAttack(i, j, x, y, piece, pieceIsWhite, attackSquare) {
     if (i < 7 && j > 0) attackSquare.add(`${i + 1}-${j - 1}`);
     if (i < 7 && j < 7) attackSquare.add(`${i + 1}-${j + 1}`);
   }
-  checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare);
 }
+
 // Ham cac quan con lai tan cong
 function pieceAttack(i, j, x, y, piece, pieceIsWhite, attackSquare, pieceKing) {
   const movesAttack = getValidMoves(i, j, piece, true);
-  const movesKing = getValidMoves(x, y, pieceKing);
-  const onMovesKing = movesKing.some(([kx, ky]) => kx == i && ky == j);
   const isAttackingKing = movesAttack.some(([mx, my]) => mx == x && my == y);
+
   if (isAttackingKing) {
-    if (!onMovesKing) {
+    attackSquare.add(`${x}-${y}`);
+    attackSquare.add(`${i}-${j}`);
+    // Chỉ thêm các ô trên đường tấn công, không thêm ô của vua
+    if (piece != "♞" || piece != "♘") {
       const lineAttackToKing = lineAttackKing(i, j, x, y);
       for (let line of lineAttackToKing) {
         attackSquare.add(`${line[0]}-${line[1]}`);
       }
-    } else {
-      for (let move of movesKing) {
-        attackSquare.add(`${move[0]}-${move[1]}`);
-      }
+      // Thêm ô của quân tấn công
     }
-    attackSquare.add(`${i}-${j}`);
-    attackSquare.add(`${x}-${y}`);
-
-    checkSquareBehindKing(i, j, x, y, attackSquare);
-    checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare);
   } else {
+    // Thêm các ô mà quân cờ có thể di chuyển đến
     for (let move of movesAttack) {
       attackSquare.add(`${move[0]}-${move[1]}`);
     }
   }
 }
-// Ham kiem tra o sau vua
-function checkSquareBehindKing(i, j, x, y, attackSquare) {
-  const dx = Math.sign(x - i);
-  const dy = Math.sign(y - j);
-  let behindKingX = x + dx;
-  let behindKingY = y + dy;
-  if (
-    insideBoard(behindKingX, behindKingY) &&
-    board[behindKingX][behindKingY] == ""
-  ) {
-    attackSquare.add(`${behindKingX}-${behindKingY}`);
-  }
-}
-// Ham kiem tra co bi chieu chong khong
-function checkBehindForDoubleCheck(i, j, x, y, pieceIsWhite, attackSquare) {
-  const dx = Math.sign(i - x);
-  const dy = Math.sign(j - y);
-  let nx = i + dx;
-  let ny = j + dy;
-  while (insideBoard(nx, ny)) {
-    const nextPiece = board[nx][ny];
-    if (
-      nextPiece &&
-      (pieceIsWhite ? pieceWhite(nextPiece) : pieceBlack(nextPiece))
-    ) {
-      break;
-    }
-    const nextMoves = getValidMoves(nx, ny, nextPiece, true);
-    const checkNextPiece = nextMoves.some(([mx, my]) => mx == x && my == y);
-    if (checkNextPiece) {
-      attackSquare.add(`${i}-${j}`);
-      break;
-    }
-    nx += dx;
-    ny += dy;
-  }
-}
+
 // Ham gioi han pham vi trong ban co`
 function insideBoard(x, y) {
   return x >= 0 && x < 8 && y >= 0 && y < 8;
 }
 // Ham tra ve mang chua nhung quan
-function safeKing(x, y, pieceKing) {
-  const pieceProtect = [];
-  const pieceIsWhite = pieceWhite(pieceKing);
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      const teammate = board[i][j];
-      if (
-        teammate &&
-        (pieceIsWhite ? pieceWhite(teammate) : pieceBlack(teammate))
-      ) {
-        const moves = getValidMoves(i, j, teammate);
-        for (let [mx, my] of moves) {
-          const undoFrom = board[i][j];
-          const undoTo = board[mx][my];
-          board[i][j] = "";
-          board[mx][my] = teammate;
-          const stillInCheck = pieceAttackKing(x, y, pieceKing).includes(
-            `${x}-${y}`
-          );
-          board[i][j] = undoFrom;
-          board[mx][my] = undoTo;
-          if (!stillInCheck) {
-            pieceProtect.push(`${i}-${j}`);
-            break;
-          }
-        }
-      }
-    }
-  }
-  pieceProtect.push(`${x}-${y}`);
-  return pieceProtect;
-}
+// function safeKing(x, y, pieceKing) {
+//   const pieceProtect = [];
+//   const pieceIsWhite = pieceWhite(pieceKing);
+//   for (let i = 0; i < 8; i++) {
+//     for (let j = 0; j < 8; j++) {
+//       const teammate = board[i][j];
+//       if (
+//         teammate &&
+//         (pieceIsWhite ? pieceWhite(teammate) : pieceBlack(teammate))
+//       ) {
+//         const moves = getValidMoves(i, j, teammate);
+//         for (let [mx, my] of moves) {
+//           const undoFrom = board[i][j];
+//           const undoTo = board[mx][my];
+//           board[i][j] = "";
+//           board[mx][my] = teammate;
+//           const stillInCheck = pieceAttackKing(x, y, pieceKing).includes(
+//             `${x}-${y}`
+//           );
+//           board[i][j] = undoFrom;
+//           board[mx][my] = undoTo;
+//           if (!stillInCheck) {
+//             pieceProtect.push(`${i}-${j}`);
+//             break;
+//           }
+//         }
+//       }
+//     }
+//   }
+//   pieceProtect.push(`${x}-${y}`);
+//   return pieceProtect;
+// }
 
 // ** Vua van bi loi khi di vao duong tan cong cua quan Hau, Xe, Tuong
 // ** Viet ro, chieu chong thi chi vua di chuyen, chieu don thi Vua co the an quan,
@@ -837,17 +900,153 @@ function safeKing(x, y, pieceKing) {
 
 function checkmate() {
   const kingPosition = findKing(currentTurn);
+  if (!kingPosition) return;
   const king = board[kingPosition.x][kingPosition.y];
   // Quan tan cong
   const pieceAttack = pieceAttackKing(kingPosition.x, kingPosition.y, king);
+
+  const isKingInCheck = pieceAttack.includes(
+    `${kingPosition.x}-${kingPosition.y}`
+  );
+  if (!isKingInCheck) return;
+
   const kingMoves = getValidMoves(kingPosition.x, kingPosition.y, king);
-  const safeKing = safeKingMoves(kingMoves, pieceAttack);
-  if (
-    safeKing.length == 0 &&
-    pieceAttack.includes(`${kingPosition.x}-${kingPosition.y}`)
-  ) {
+
+  const safeKing = kingMoves.filter(([kx, ky]) => {
+    return safeKingMoves(kingPosition.x, kingPosition.y, kx, ky, currentTurn);
+  });
+
+  const attackPieces = findAttackPieces(kingPosition.x, kingPosition.y, king);
+
+  const teammateHelpKing = teammate(
+    kingPosition.x,
+    kingPosition.y,
+    king,
+    attackPieces
+  );
+
+  if (safeKing.length == 0 && !teammateHelpKing) {
     setTimeout(() => {
       alert(`Chiếu bí! ${currentTurn == "white" ? "Đen" : "Trắng"} thắng`);
     }, 100);
   }
+}
+
+// Ham xu ly nuoc di an toan cho vua
+function safeKingMoves(fromX, fromY, toX, toY, currentTurn) {
+  const pieceBefore = board[fromX][fromY];
+  const pieceAfter = board[toX][toY];
+
+  board[toX][toY] = pieceBefore;
+  board[fromX][fromY] = "";
+
+  let kingX, kingY;
+  if (
+    (currentTurn == "white" && pieceBefore == "♔") ||
+    (currentTurn == "black" && pieceBefore == "♚")
+  ) {
+    kingX = toX;
+    kingY = toY;
+  } else {
+    const kingPosition = findKing(currentTurn);
+    if (!kingPosition) {
+      board[fromX][fromY] = pieceBefore;
+      board[toX][toY] = pieceAfter;
+      return false;
+    }
+    kingX = kingPosition.x;
+    kingY = kingPosition.y;
+  }
+
+  const squareAttackKing = pieceAttackKing(kingX, kingY, board[kingX][kingY]);
+  const isKingInCheck = squareAttackKing.includes(`${kingX}-${kingY}`);
+
+  board[fromX][fromY] = pieceBefore;
+  board[toX][toY] = pieceAfter;
+
+  return !isKingInCheck;
+}
+
+//Ham tim cac quan tan cong
+
+function findAttackPieces(kingX, kingY, pieceKing) {
+  const attackPieces = [];
+  const pieceIsWhite = pieceWhite(pieceKing);
+
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const piece = board[i][j];
+      if (piece && (pieceIsWhite ? pieceBlack(piece) : pieceWhite(piece))) {
+        const movesAttack = getValidMoves(i, j, board[i][j], true);
+        const pieceAttackKing = movesAttack.some(
+          ([mx, my]) => mx == kingX && my == kingY
+        );
+        if (pieceAttackKing) {
+          attackPieces.push({ x: i, y: j, piece });
+        }
+      }
+    }
+  }
+  return attackPieces;
+}
+
+//Ham tim quan giup vua thoat chieu
+function teammate(kingX, kingY, pieceKing, attackPieces) {
+  const pieceIsWhite = pieceWhite(pieceKing);
+
+  if (attackPieces.length > 1) return false;
+
+  if (attackPieces.length == 0) return true;
+
+  const attacker = attackPieces[0];
+  const attackSquares = new Set();
+  attackSquares.add(`${attacker.x}-${attacker.y}`);
+
+  if (attacker.piece != "♞" && attacker.piece != "♘") {
+    const lineAttack = lineAttackKing(attacker.x, attacker.y, kingX, kingY);
+    for (let [x, y] of lineAttack) {
+      attackSquares.add(`${x}-${y}`);
+    }
+  }
+
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const piece = board[i][j];
+      if (piece && (pieceIsWhite ? pieceWhite(piece) : pieceBlack(piece))) {
+        const movesTeammate = getValidMoves(i, j, piece);
+        for (let [mx, my] of movesTeammate) {
+          const pieceBefore = board[i][j];
+          const pieceAfter = board[mx][my];
+
+          board[mx][my] = pieceBefore;
+          board[i][j] = "";
+
+          let newKingX, newKingY;
+          if (piece == pieceKing) {
+            newKingX = mx;
+            newKingY = my;
+          } else {
+            newKingX = kingX;
+            newKingY = kingY;
+          }
+          const isKingInCheck = pieceAttackKing(
+            kingX,
+            kingY,
+            pieceKing
+          ).includes(`${kingX}-${kingY}`);
+
+          board[i][j] = pieceBefore;
+          board[mx][my] = pieceAfter;
+
+          if (
+            !isKingInCheck &&
+            (attackSquares.has(`${mx}-${my}`) || piece == pieceKing)
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }

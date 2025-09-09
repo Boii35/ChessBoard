@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mongo": "mongod --dbpath C:\\data\\db",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -16,9 +18,13 @@
     "url": "https://github.com/Boii35/ChessBoard/issues"
   },
   "homepage": "https://github.com/Boii35/ChessBoard#readme",
-  "description": "",
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
     "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.2",
     "ws": "^8.18.2"
-  }
+  },
+  "description": ""
 }

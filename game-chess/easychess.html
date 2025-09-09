@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Bàn cờ vua</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      media="screen"
+      href="/game-chess/easychess.css"
+    />
+    <link
+      rel="shortcut icon"
+      href="https://lichess1.org/assets/logo/lichess-favicon-512.png"
+      type="image/x-icon"
+    />
+  </head>
+  <body>
+    <div id="loginContainer">
+      <h1>Chessgame</h1>
+      <div id="registerForm" class="form">
+        <h2>Register</h2>
+        <input type="text" id="regUsername" placeholder="Username" required />
+        <input type="text" id="regPassword" placeholder="Password" required />
+        <button id="registerBtn">Dang ky</button>
+        <p id="regMessage"></p>
+      </div>
+      <div id="loginForm" class="form" style="display: none">
+        <h2>Login</h2>
+        <input type="text" id="logUsername" placeholder="Username" required />
+        <input type="text" id="logPassword" placeholder="Password" required />
+        <button id="loginBtn">Dang nhap</button>
+        <p id="logMessage"></p>
+      </div>
+    </div>
+    <div id="roomContainer" style="display: none">
+      <h2>Chào mừng người chơi</h2>
+      <button id="createRoomBtn">Tao phong</button>
+      <button id="joinRoomBtn">Tham gia phong</button>
+      <div id="roomArea"></div>
+      <hr />
+      <h3>Lich su dau</h3>
+      <button id="showHistoryBtn">Xem lich su dau</button>
+      <div id="historyArea"></div>
+    </div>
+    <div id="chessContainer" style="display: none">
+      <h1>Bàn cờ vua đơn giản</h1>
+      <div class="chessblock">
+        <div id="chessboard"></div>
+        <div class="infor">
+          <div class="check-message blackKing"></div>
+          <div class="defeatedPiece">
+            <div id="defeatedBlackPiece">Đen bị ăn:</div>
+            <div id="defeatedWhitePiece">Trắng bị ăn:</div>
+          </div>
+          <div class="check-message whiteKing"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/game-chess/easychess.js"></script>
+  </body>
+</html>
